@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prueba de conexión - TurnoExtra</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 480px; margin: 24px auto; padding: 0 16px; }
+    button { padding: 10px 14px; margin: 6px 0; }
+    input { display: block; width: 100%; padding: 10px; margin: 6px 0; box-sizing: border-box; }
+    pre { background: #f3f4f6; padding: 12px; white-space: pre-wrap; word-break: break-word; }
+  </style>
+</head>
+<body>
+  <h1>Prueba de conexión</h1>
+
+  <h2>1. Sin sesión</h2>
+  <p>Debe salir un error de permiso. Eso confirma que llegamos a Supabase y que está protegido.</p>
+  <button id="btnSinSesion">Probar sin sesión</button>
+
+  <h2>2. Con sesión (administrador)</h2>
+  <input id="correo" type="email" placeholder="Correo del administrador">
+  <input id="clave" type="password" placeholder="Contraseña">
+  <button id="btnEntrar">Iniciar sesión y leer mi perfil</button>
+
+  <pre id="resultado">Aquí aparecerá el resultado.</pre>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/config.js"></script>
+  <script>
+    const salida = document.getElementById("resultado");
+    const mostrar = (texto) => { salida.textContent = texto; };
+
+    document.getElementById("btnSinSesion").addEventListener("click", async () => {
+      await db.auth.signOut();
+      const { data, error } = await db.from("vacantes").select("id").limit(1);
+      if (error) {
+        mostrar("Respuesta de Supabase (esperada):\n" + error.message);
+      } else {
+        mostrar("Atención: se pudo leer sin sesión. Avísame.\n" + JSON.stringify(data));
+      }
+    });
+
+    document.getElementById("btnEntrar").addEventListener("click", async () => {
+      const correo = document.getElementById("correo").value.trim();
+      const clave = document.getElementById("clave").value;
+
+      const { error: errorLogin } = await db.auth.signInWithPassword({ email: correo, password: clave });
+      if (errorLogin) {
+        mostrar("No se pudo iniciar sesión:\n" + errorLogin.message);
+        return;
+      }
+
+      const { data: { user } } = await db.auth.getUser();
+      const { data, error } = await db
+        .from("usuarios")
+        .select("nombre, correo, tipo_cuenta, estado_verificacion")
+        .eq("id", user.id)
+        .single();
+
+      if (error) {
+        mostrar("Inició sesión, pero no pudo leer el perfil:\n" + error.message);
+      } else {
+        mostrar("Conexión correcta. Tu perfil:\n" + JSON.stringify(data, null, 2));
+      }
+    });
+  </script>
+</body>
+</html>
+
+
